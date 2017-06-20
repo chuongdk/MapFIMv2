@@ -1,0 +1,16 @@
+/tmphome/prof/chuong/workspace/FinalApriori/src/main/java/girafon/MApriori/Trie.java
+/tmphome/prof/chuong/workspace/FinalApriori/src/main/java/girafon/MApriori/ReducerBetaPrefix.java
+/tmphome/prof/chuong/workspace/FinalApriori/src/main/java/girafon/MApriori/MAprioriReducer.java
+/tmphome/prof/chuong/workspace/FinalApriori/src/main/java/girafon/MApriori/Combiner.java
+/tmphome/prof/chuong/workspace/FinalApriori/src/main/java/girafon/MApriori/MAprioriCombiner.java
+/tmphome/prof/chuong/workspace/FinalApriori/src/main/java/girafon/MApriori/MapperBetaPrefix.java
+/tmphome/prof/chuong/workspace/FinalApriori/src/main/java/girafon/MApriori/Transaction.java
+/tmphome/prof/chuong/workspace/FinalApriori/src/main/java/girafon/MApriori/MapDuplicateCandidate.java
+/tmphome/prof/chuong/workspace/FinalApriori/src/main/java/girafon/MApriori/HashPartitioner.java
+/tmphome/prof/chuong/workspace/FinalApriori/src/main/java/girafon/MApriori/MAprioriReducerStepK.java
+/tmphome/prof/chuong/workspace/FinalApriori/src/main/java/girafon/MApriori/MAprioriMapperStepK.java
+/tmphome/prof/chuong/workspace/FinalApriori/src/main/java/girafon/MApriori/MAprioriMapperCompressData.java
+/tmphome/prof/chuong/workspace/FinalApriori/src/main/java/girafon/MApriori/App.java
+/tmphome/prof/chuong/workspace/FinalApriori/src/main/java/girafon/MApriori/TrieNode.java
+/tmphome/prof/chuong/workspace/FinalApriori/src/main/java/girafon/MApriori/Item.java
+/tmphome/prof/chuong/workspace/FinalApriori/src/main/java/girafon/MApriori/MAprioriMapper.java
