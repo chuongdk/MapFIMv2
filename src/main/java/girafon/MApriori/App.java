@@ -483,7 +483,7 @@ public class App extends Configured implements Tool {
 		//we need a custom partitioner, so each reducer take care of the same set of prefixs
 		job.setPartitionerClass(HashPartitioner.class);
 
-		job.setReducerClass(MAprioriReducer.class);
+		job.setReducerClass(ReducerGlobalPhase.class);
 		job.setOutputKeyClass(Text.class);
 		job.setOutputValueClass(Text.class);
 		
