@@ -76,7 +76,9 @@ public class ReducerBetaPrefix
 	   // FPF to mine it
 	   List<String> commands = new ArrayList<String>();
 //       commands.add("/home/chuong/workspace/Borgel/fp/fpgrowth/src/fpgrowth");
-       commands.add("/home/chuong/workspace/eclat/src/eclat");
+//       commands.add("/home/chuong/workspace/eclat/src/eclat");
+       commands.add(config.get("eclatFolder", ""));
+       
        commands.add("-ts");
        String supportBorgel = "-s-" + support;       
        commands.add(supportBorgel);

@@ -1,11 +1,14 @@
 package girafon.MApriori;
 
+import java.io.BufferedInputStream;
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.InputStreamReader;
 
 import java.util.ArrayList;
@@ -28,27 +31,23 @@ import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
 import org.apache.hadoop.util.Tool;
 import org.apache.hadoop.util.ToolRunner;
 
-// TO DO:
-// Output to file: Done
-// Remove duplicate in data
-// Compute D': Done. 
-// put to github for test
 
-// note: beta now is the limit on the Memory (512M for example)
+// parameters: input output support memory #database #reducers #eclatFolder
 
-
+// TODO:
 // - Generate Candidates at Reducers
 // - 1 phase MapReduce instead of many phase for each iteration in Apriori
+// - Item ordering (0, 1, 2): 1 = increasing order, 2 = decreasing order
+
 
 
 public class App extends Configured implements Tool {
-
 	private static long gamma = 18;
 	private static long maxDataAllow = 0;
 	private long maxCandidate = 8 * 1024 * 1024;
 	private int maxfullBetaPrefix = 1000; // #conditional database that we can handle
 	
-	private int numberReducers = 30;
+	private static int numberReducers = 0;
 	final long DEFAULT_SPLIT_SIZE = 128  * 1024 * 1024;  // 1M
 	
 	private static long beginTime;
@@ -422,8 +421,10 @@ public class App extends Configured implements Tool {
 	
 	Configuration setupConf(String[] args, int iteration) {
 		Configuration conf = new Configuration();
-		conf.set("input", args[0]);  // first step that finding all frequent itemset
-		conf.set("output", args[1]);  // first step that finding all frequent itemset
+		conf.set("input", args[0]);  
+		conf.set("output", args[1]); 
+		conf.set("eclatFolder", args[6]);
+
 		
 		conf.setInt("support", Integer.valueOf(args[2]));
 		conf.setInt("beta", Integer.valueOf(args[3])); // beta threshold for DApriori
@@ -453,29 +454,30 @@ public class App extends Configured implements Tool {
 		return job;
 	}
 	
-	/*
+
 	Job setupJobStep1B(Configuration conf) throws Exception {
-		Job job = Job.getInstance(conf, "DApriori step 1b");
+		Job job = Job.getInstance(conf, "compress Data");
 		job.setJarByClass(App.class);
 		job.setMapperClass(MAprioriMapperCompressData.class);
 		
-		job.setCombinerClass(MAprioriCombiner.class);
+		job.setCombinerClass(MAprioriReducer.class);
 		job.setReducerClass(MAprioriReducer.class);
-	
+
 		job.setOutputKeyClass(Text.class);
-		job.setOutputValueClass(IntWritable.class);
-		
+		job.setOutputValueClass(Text.class);
+			
 		addCacheFilesFromQueue(conf, job, false);
+		// set number of reducers
+		job.setNumReduceTasks(numberReducers);
+
+			
 		FileInputFormat.addInputPath(job, getInputPath(conf));
 		FileOutputFormat.setOutputPath(job, getOutputPathCompressData(conf));// output path for iteration 1 is: output/1
-		
-		// we try with 1 reducer
-		job.setNumReduceTasks(numberReducers);
 		return job;
 	}
-	*/
+
 	Job setupJobStep2(Configuration conf) throws Exception {
-		Job job = Job.getInstance(conf, "DApriori step 2");
+		Job job = Job.getInstance(conf, "MapFIM step 2");
 		job.setJarByClass(App.class);
 		job.setMapperClass(MAprioriMapperStepK.class);
 		//we need a custom partitioner, so each reducer take care of the same set of prefixs
@@ -496,7 +498,7 @@ public class App extends Configured implements Tool {
 	}
 	
 	Job setupJobStep3(Configuration conf) throws Exception {	
-		Job job = Job.getInstance(conf, "DApriori Mining Prefix");
+		Job job = Job.getInstance(conf, "MapFIM Mining Prefix");
 		job.setJarByClass(App.class);
 		job.setMapperClass(MapperBetaPrefix.class);
 		job.setMapOutputKeyClass(Text.class);
@@ -511,10 +513,30 @@ public class App extends Configured implements Tool {
 		FileOutputFormat.setOutputPath(job, getOutputPath(conf, conf.getInt("iteration", 1)));
 		return job;
 	}
-		
+
+	public static int countLines(String filename) throws IOException {
+	    InputStream is = new BufferedInputStream(new FileInputStream(filename));
+	    try {
+	        byte[] c = new byte[1024];
+	        int count = 0;
+	        int readChars = 0;
+	        boolean empty = true;
+	        while ((readChars = is.read(c)) != -1) {
+	            empty = false;
+	            for (int i = 0; i < readChars; ++i) {
+	                if (c[i] == '\n') {
+	                    ++count;
+	                }
+	            }
+	        }
+	        return (count == 0 && !empty) ? 1 : count;
+	    } finally {
+	        is.close();
+	    }
+	}
+	
 	public int run(String[] args) throws Exception {
-		if (Integer.parseInt(args[4]) > 0)
-			maxfullBetaPrefix = Integer.parseInt(args[4]);
+		maxfullBetaPrefix = Integer.parseInt(args[4]);
 		
 		// Iteration 1
 		{
@@ -539,24 +561,7 @@ public class App extends Configured implements Tool {
 			
 			Configuration conf = setupConf(args, 0);
 			conf.setInt("support", 1);  // because we compress data
-			
-			Job job = Job.getInstance(conf, "word count");
-			job.setJarByClass(App.class);
-			job.setMapperClass(MAprioriMapperCompressData.class);
-			
-			job.setCombinerClass(MAprioriReducer.class);
-			job.setReducerClass(MAprioriReducer.class);
-
-			job.setOutputKeyClass(Text.class);
-			job.setOutputValueClass(Text.class);
-			
-			addCacheFilesFromQueue(conf, job, false);
-			// we try with 1 reducer
-			job.setNumReduceTasks(numberReducers);
-
-			
-			FileInputFormat.addInputPath(job, getInputPath(conf));
-			FileOutputFormat.setOutputPath(job, getOutputPathCompressData(conf));// output path for iteration 1 is: output/1
+			Job job = setupJobStep1B(conf);
 			job.waitForCompletion(true);
 		}		
 		step2Time = System.currentTimeMillis();
@@ -673,7 +678,8 @@ public class App extends Configured implements Tool {
 	    
 	    String outputFile = "result_" + args[0].substring(6) + "_support_" +    args[2] + ".txt";
     	commands.add(outputFile);
-	    
+ 
+    	
 	    //Run macro on target
        ProcessBuilder pb = new ProcessBuilder(commands);
        pb.directory(new File("."));
@@ -683,31 +689,50 @@ public class App extends Configured implements Tool {
        System.out.println("Command: " + commands);
        //Check result
        if (process.waitFor() == 0) {
-           System.out.println("Success!");
-           System.out.println("----------------------------------------");
+           System.out.println("Success!\n");           
        }	           
 	           		
 	}	
 		
 	public static void main(String[] args) throws Exception {
-		beginTime = System.currentTimeMillis();
-		System.out.println("support : " + args[2]);
+		numberReducers = Integer.parseInt(args[5]);
 		maxDataAllow = Long.parseLong(args[3]) * 1024 /gamma * 1024;
-		System.out.println("Max Memory Allow = " + args[3]);	
-		System.out.println("Max Data Allow = " + maxDataAllow);		
 		
+		System.out.println("----------------------------RUNNING-------------------------");
+		System.out.println("Input            : " + args[0]);
+		System.out.println("Output           : " + args[1]);
+		System.out.println("Support          : " + args[2]);		
+		System.out.println("Max Memory Allow : " + args[3]);	
+		System.out.println("Max Data Allow   : " + maxDataAllow);		
+		System.out.println("#Databases       : " + args[4]);
+		System.out.println("#Reducer         : " + args[5]);
+		System.out.println("Eclat Folder     : " + args[6]);
+		System.out.println("------------------------------------------------------------");		
+		
+		beginTime = System.currentTimeMillis();
 		int exitCode = ToolRunner.run(new App(), args);
-
 		step4Time = System.currentTimeMillis();
+
+
+		System.out.println("----------------------------SUMARRY-------------------------");
+		System.out.println("Input            : " + args[0]);
+		System.out.println("Output           : " + args[1]);
+		System.out.println("Support          : " + args[2]);		
+		System.out.println("Max Memory Allow : " + args[3]);	
+		System.out.println("Max Data Allow   : " + maxDataAllow);		
+		System.out.println("#Databases       : " + args[4]);
+		System.out.println("#Reducer         : " + args[5]);
+		System.out.println("Eclat Folder     : " + args[6]);
+	    String outputFile = "result_" + args[0].substring(6) + "_support_" +    args[2] + ".txt";
+	    System.out.println("Number of FIMs   : " + countLines(outputFile));
+		System.out.println("------------------------------------------------------------");		
+
 		
-		
-		
-		System.out.println("Step 1 time : " + (step1Time - beginTime)/1000 + " seconds.");
-		System.out.println("Step 2 time : " + (step2Time - step1Time )/1000 + " seconds.");
-		System.out.println("Step 3 time : " + (step3Time - step2Time )/1000 + " seconds.");
-		System.out.println("Step 4 time : " + (step4Time - step3Time )/1000 + " seconds.");
-		
-		System.out.println("Total time : " + (step4Time - beginTime)/1000 + " seconds.");
+		System.out.println("Step 1 time  : " + (step1Time - beginTime)/1000 + " seconds.");
+		System.out.println("Step 1b time : " + (step2Time - step1Time )/1000 + " seconds.");
+		System.out.println("Step 2 time  : " + (step3Time - step2Time )/1000 + " seconds.");
+		System.out.println("Step 3 time  : " + (step4Time - step3Time )/1000 + " seconds.");
+		System.out.println("Total time   : " + (step4Time - beginTime)/1000 + " seconds.");
 		
 		System.exit(exitCode);
 	}
