@@ -419,13 +419,14 @@ public class App extends Configured implements Tool {
 	
 	
 	
+	
 	Configuration setupConf(String[] args, int iteration) {
 		Configuration conf = new Configuration();
 		conf.set("input", args[0]);  
 		conf.set("output", args[1]); 
 		conf.set("eclatFolder", args[6]);
 
-		
+		conf.setLong("maxDataAllow", maxDataAllow);
 		conf.setInt("support", Integer.valueOf(args[2]));
 		conf.setInt("beta", Integer.valueOf(args[3])); // beta threshold for DApriori
 				conf.setInt("iteration", iteration);  // first step that finding all frequent itemset
@@ -444,7 +445,9 @@ public class App extends Configured implements Tool {
 		job.setJarByClass(App.class);
 		job.setMapperClass(MAprioriMapper.class);
 		job.setCombinerClass(Combiner.class);
-		job.setReducerClass(MAprioriReducer.class);
+		//job.setReducerClass(MAprioriReducer.class);
+		job.setReducerClass(ReducerGlobalPhase.class);
+		job.setPartitionerClass(HashPartitioner.class);
 		job.setNumReduceTasks(numberReducers);
 		job.setOutputKeyClass(Text.class);
 		job.setOutputValueClass(Text.class);
@@ -479,7 +482,8 @@ public class App extends Configured implements Tool {
 	Job setupJobStep2(Configuration conf) throws Exception {
 		Job job = Job.getInstance(conf, "MapFIM step 2");
 		job.setJarByClass(App.class);
-		job.setMapperClass(MAprioriMapperStepK.class);
+		//job.setMapperClass(MAprioriMapperStepK.class);
+		job.setMapperClass(MapperGlobalPhase.class);
 		//we need a custom partitioner, so each reducer take care of the same set of prefixs
 		job.setPartitionerClass(HashPartitioner.class);
 
@@ -584,16 +588,22 @@ public class App extends Configured implements Tool {
 			Job job = setupJobStep2(conf);
 		
 			job.waitForCompletion(true);
+			
+			
+			System.out.println("\n\n\n\nStill having Candidate? : " + hasCandidate(conf, iteration));
 			// the number of iteration is not the iteration of steps, but the iteration of mapper/reducer
 			// each time, we will load every output of the last iteration, the load it to the QUEUE
 			// put some files in the QUEUE to the CACHE => make sure the sum is less than <10000
 			// queue is updated right after we have output
 			//updateQueue(conf);
+			stop = !hasCandidate(conf, iteration);
+
+			
 			updateQueueCandidate(conf);
 			iteration++;
-			if (queueCandidate.size() == 0) {
-				stop = true;
-			}
+
+			
+
 		}
 		step3Time = System.currentTimeMillis();
 		
@@ -693,10 +703,33 @@ public class App extends Configured implements Tool {
        }	           
 	           		
 	}	
+	
+	private boolean hasCandidate(Configuration conf, Integer iteration) throws IOException{
+		FileSystem fs = FileSystem.get(conf);
+		Path candidatePath = new Path(conf.get("output") 
+				+ System.getProperty("file.separator")  
+				+ iteration.toString() 
+				+ System.getProperty("file.separator")
+				+ "candidate" );	
 		
+		
+		 
+		/* FileStatus[] status = fs.listStatus(new Path(conf.get("output") 
+				+ System.getProperty("file.separator")  
+				+ iteration.toString() 
+				+ System.getProperty("file.separator")  
+				+ "candidate" ));	
+		*/
+		
+		return fs.exists(candidatePath);
+		
+	}
+	
+	
 	public static void main(String[] args) throws Exception {
 		numberReducers = Integer.parseInt(args[5]);
 		maxDataAllow = Long.parseLong(args[3]) * 1024 /gamma * 1024;
+		
 		
 		System.out.println("----------------------------RUNNING-------------------------");
 		System.out.println("Input            : " + args[0]);
