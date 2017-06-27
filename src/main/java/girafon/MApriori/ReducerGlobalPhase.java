@@ -69,9 +69,9 @@ public class ReducerGlobalPhase
 	// ganerate: have to take care of DATA
 	private void generateCandidate() throws IOException {
 
-		System.out.println("\n\nNew Bucket");
-		for (int i = 0; i < fims.size(); i++)
-			System.out.println(fims.get(i));
+		//System.out.println("\n\nNew Bucket");
+		//for (int i = 0; i < fims.size(); i++)
+		//	System.out.println(fims.get(i));
 		
 		if (fims.size() <= 1)
 			return;
@@ -87,7 +87,7 @@ public class ReducerGlobalPhase
 			fileName.append( firstFim.get(i).toString() + "_" );
 		
 		File tempFile = File.createTempFile(fileName.toString(), ".tmp");
-		System.out.println("Creating a new temp file " + tempFile.getAbsolutePath());
+		//System.out.println("Creating a new temp file " + tempFile.getAbsolutePath());
 		BufferedWriter outFile = new BufferedWriter(new FileWriter(tempFile.getAbsolutePath(), true));		
 
 		long count = 0;
@@ -125,8 +125,8 @@ public class ReducerGlobalPhase
 		// put tempFile to the HDFS at output/candidate
 		if (count > 0) {
 	   		Path localFilePath = new Path(tempFile.getAbsolutePath());
-	   		System.out.println("CANDIDATE Copy from : " + localFilePath.toString());  		
-			System.out.println("CANDIDATE Copy to : " + candidatePath.toString());
+	   		//System.out.println("CANDIDATE Copy from : " + localFilePath.toString());  		
+			//System.out.println("CANDIDATE Copy to : " + candidatePath.toString());
 			
 			FileSystem hdfs = FileSystem.get(conf);
 			hdfs.copyFromLocalFile(localFilePath, new Path(candidatePath.toString() + System.getProperty("file.separator") + tempFile.getName()));
@@ -193,7 +193,7 @@ public class ReducerGlobalPhase
 	// Generate Candidates from FIMs
 	@Override
 	public void cleanup(Context context) throws IOException, InterruptedException {
-		System.out.println("\n\n\nGenerate the last bucket");
+		//System.out.println("\n\n\nGenerate the last bucket");
 		generateCandidate();
 		
 		

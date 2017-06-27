@@ -10,6 +10,7 @@ import org.apache.hadoop.fs.Path;
 
 public class Trie {
 	  
+	
 	  private int item;
 	  public int support;
 	  public long data; //size of conditional database 
@@ -24,7 +25,6 @@ public class Trie {
 	  
 	  
 	  public  Trie(int item){
-		  
 		  this.item = item;
 		  this.support = 0;
 		  this.data = 0;

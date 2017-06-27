@@ -425,7 +425,7 @@ public class App extends Configured implements Tool {
 		conf.set("input", args[0]);  
 		conf.set("output", args[1]); 
 		conf.set("eclatFolder", args[6]);
-
+		conf.setInt("maxTrieSize", Integer.valueOf(args[7]));
 		conf.setLong("maxDataAllow", maxDataAllow);
 		conf.setInt("support", Integer.valueOf(args[2]));
 		conf.setInt("beta", Integer.valueOf(args[3])); // beta threshold for DApriori
@@ -711,16 +711,7 @@ public class App extends Configured implements Tool {
 				+ iteration.toString() 
 				+ System.getProperty("file.separator")
 				+ "candidate" );	
-		
-		
 		 
-		/* FileStatus[] status = fs.listStatus(new Path(conf.get("output") 
-				+ System.getProperty("file.separator")  
-				+ iteration.toString() 
-				+ System.getProperty("file.separator")  
-				+ "candidate" ));	
-		*/
-		
 		return fs.exists(candidatePath);
 		
 	}
@@ -740,6 +731,8 @@ public class App extends Configured implements Tool {
 		System.out.println("#Databases       : " + args[4]);
 		System.out.println("#Reducer         : " + args[5]);
 		System.out.println("Eclat Folder     : " + args[6]);
+		System.out.println("max Trie size    : " + args[7]);
+
 		System.out.println("------------------------------------------------------------");		
 		
 		beginTime = System.currentTimeMillis();
@@ -756,6 +749,7 @@ public class App extends Configured implements Tool {
 		System.out.println("#Databases       : " + args[4]);
 		System.out.println("#Reducer         : " + args[5]);
 		System.out.println("Eclat Folder     : " + args[6]);
+		System.out.println("max Trie size    : " + args[7]);		
 	    String outputFile = "result_" + args[0].substring(6) + "_support_" +    args[2] + ".txt";
 	    System.out.println("Number of FIMs   : " + countLines(outputFile));
 		System.out.println("------------------------------------------------------------");		

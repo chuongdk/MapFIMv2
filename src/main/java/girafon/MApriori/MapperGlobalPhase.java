@@ -34,12 +34,14 @@ public class MapperGlobalPhase
 	// candidate Trie that we will mine
 	private Trie candidateTrie;
 	
+	private int maxTrieSize;
 	
 	private Path candidatePath;
 	 @Override
 	protected void setup(Context context) throws IOException, InterruptedException {
 		conf = context.getConfiguration();
 		Integer prevIteration  = conf.getInt("iteration", 0) - 1;
+		maxTrieSize = conf.getInt("maxTrieSize", 0);
 		candidatePath = new Path(conf.get("output") 
 					+ System.getProperty("file.separator")  
 					+ prevIteration.toString() 
@@ -62,6 +64,24 @@ public class MapperGlobalPhase
 	 }
 
 	 
+	 private void mining(Context context) throws IOException, InterruptedException {
+			// We have candidateTrie + data. Now we mine
+			for(String line:data){
+				String[] s = line.split("\\s+");
+				List<Integer> t = new ArrayList<Integer>();
+				for(int i=0; i<s.length; i++)
+				   t.add(Integer.parseInt(s[i]));
+				// update support in Trie with transaction t
+				candidateTrie.updateSupport(t);
+				
+			}
+ 
+			// Mining is done. Now export to Reducers
+			 List<Integer> itemset = new ArrayList<Integer>();
+			 outToReducer(context, candidateTrie, itemset);		 
+	 }
+	 
+	 
 	 // Get candidates and mine with Data
 	 @Override
 	 public void cleanup(Context context) throws IOException, InterruptedException {
@@ -69,6 +89,8 @@ public class MapperGlobalPhase
 			FileSystem fs = FileSystem.get(conf);
 			FileStatus[] status = fs.listStatus(candidatePath);
 			candidateTrie = new Trie(-1);
+			
+			int totalNode = 0;
 			
 			for(int i = 0; i<status.length; i++){ 
 				InputStreamReader ir = new InputStreamReader(fs.open(status[i].getPath()));
@@ -84,25 +106,25 @@ public class MapperGlobalPhase
 		    		}    		
 		    		// add p to the list of prefix
 		    		candidateTrie.addToTrie(tempPrefix);
+
+		    		totalNode += tempPrefix.size();
+			    	if (totalNode >= maxTrieSize) {
+			    		 System.out.println("\n\n\n\nMining with #node = " + totalNode);
+			    		mining(context);
+			    		totalNode = 0;
+			    		candidateTrie = new Trie(-1);
+			    	}
+
 		    	}  
+		    	
 		    	
 			}
 			
-			// We have candidateTrie + data. Now we mine
-			for(String line:data){
-				String[] s = line.split("\\s+");
-				List<Integer> t = new ArrayList<Integer>();
-				for(int i=0; i<s.length; i++)
-				   t.add(Integer.parseInt(s[i]));
-				
-				// update support in Trie with transaction t
-				candidateTrie.updateSupport(t);
-			}
-			
-			
-			// Mining is done. Now export to Reducers
-			 List<Integer> itemset = new ArrayList<Integer>();
-			 outToReducer(context, candidateTrie, itemset);
+	    	if (totalNode > 0) {
+ 	    		System.out.println("\n\n\n\nFinal Mining with #node = " + totalNode);
+	    		mining(context);
+	    	}
+ 
 			  		
 	 
 	 }
