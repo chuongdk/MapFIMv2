@@ -26,9 +26,13 @@ public class ReducerGlobalPhase
 	private long maxDataAllow;
 	// list of FIMs
     private List<List<Integer>> fims; 
+    private List<List<Integer>> betaFims;
+    
     List<Integer> prevFim = null;
     
     private Path candidatePath;
+    private Path betaPath;
+    
     private Configuration conf;
 	@Override
 	protected void setup(Context context) throws IOException, InterruptedException {
@@ -36,13 +40,17 @@ public class ReducerGlobalPhase
 		support = conf.getInt("support", 1);
 		maxDataAllow = conf.getLong("maxDataAllow", 0);
 		fims = new  ArrayList<List<Integer>>();
+		betaFims = new  ArrayList<List<Integer>>();
 		
-		
-		
+		 
 		candidatePath =  new Path(conf.get("output") + 
 				System.getProperty("file.separator") + 
 				conf.get("iteration") +  System.getProperty("file.separator")  + 
 				"candidate");
+		betaPath =  new Path(conf.get("output") + 
+				System.getProperty("file.separator")  + 
+				"betaFIMs");
+		
 		return;
 	}
 	
@@ -75,11 +83,7 @@ public class ReducerGlobalPhase
 		
 		if (fims.size() <= 1)
 			return;
-		
-
-			
-			
-			
+					
 		// create new temp file
 		List<Integer> firstFim = fims.get(0);
 		StringBuilder fileName = new StringBuilder("_Candidate_");
@@ -166,8 +170,12 @@ public class ReducerGlobalPhase
 		   if (sumData > maxDataAllow) {
 			   aFIM.add(1);
 		   }
-		   else
+		   else   {
+			   // add aFIM to betaData
+			   betaFims.add(aFIM);
+			   
 			   aFIM.add(0);
+		   }
 		   
 		   
 		   // add aFIM to fims if prevFim is null or prevFIM share k-1 prefix
@@ -196,7 +204,35 @@ public class ReducerGlobalPhase
 		//System.out.println("\n\n\nGenerate the last bucket");
 		generateCandidate();
 		
-		
+		// Save the beta FIM to HDFS
+		System.out.println("-------------BETA FIMS------------------");
+		if (betaFims.size() > 0) {
+			StringBuilder fileName = new StringBuilder("beta_");
+			// add task ID
+			fileName.append(conf.get("mapred.task.id", "1") + "_");
+			
+			File tempFile = File.createTempFile(fileName.toString(), ".tmp");
+			//System.out.println("Creating a new temp file " + tempFile.getAbsolutePath());
+			BufferedWriter outFile = new BufferedWriter(new FileWriter(tempFile.getAbsolutePath(), true));		
+
+			// write beta FIMs to file
+			for (List<Integer> x : betaFims) {
+				for (int i = 0; i < x.size()-1; i++)
+					outFile.write( x.get(i) + " ");				
+    			outFile.newLine();
+			}
+			
+			outFile.close();
+			// put tempFile to the HDFS at output/betaPath
+		   	Path localFilePath = new Path(tempFile.getAbsolutePath());
+			FileSystem hdfs = FileSystem.get(conf);
+			hdfs.copyFromLocalFile(localFilePath, 
+					new Path(betaPath.toString() + 
+							System.getProperty("file.separator") + 
+							tempFile.getName()));
+			tempFile.delete();		
+		}
+ 		
 	}
 	
 	
