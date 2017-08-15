@@ -6,6 +6,7 @@ import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
+import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStream;
@@ -36,8 +37,8 @@ import org.apache.hadoop.util.ToolRunner;
 
 // TODO:
 // - Reducers generate file containning beta FIM (FIM with data <= maxDataAllow)
-// => at output/betaFIMs
-// - Rewrite step4
+// => at output/betaFIMs. DONE
+// - Rewrite step4. DONE
 // - Item ordering (0, 1, 2): 1 = increasing order, 2 = decreasing order
 
 
@@ -57,7 +58,8 @@ public class App extends Configured implements Tool {
 	private static long step3Time;
 	private static long step4Time;
 	
-
+    private List<List<Integer>> betaPrefix = new  ArrayList<List<Integer>>();
+    
 	
 	// we will output to Output/1,2,3,4
 	private Path getOutputPath(Configuration conf, int iteration) {
@@ -157,11 +159,9 @@ public class App extends Configured implements Tool {
 	Job setupJobStep2(Configuration conf) throws Exception {
 		Job job = Job.getInstance(conf, "MapFIM step 2");
 		job.setJarByClass(App.class);
-		//job.setMapperClass(MAprioriMapperStepK.class);
 		job.setMapperClass(MapperGlobalPhase.class);
 		//we need a custom partitioner, so each reducer take care of the same set of prefixs
 		job.setPartitionerClass(HashPartitioner.class);
-
 		job.setReducerClass(ReducerGlobalPhase.class);
 		job.setOutputKeyClass(Text.class);
 		job.setOutputValueClass(Text.class);
@@ -172,6 +172,56 @@ public class App extends Configured implements Tool {
 		FileOutputFormat.setOutputPath(job, getOutputPath(conf, conf.getInt("iteration", 1)));// output path for iteration 1 is: output/1
 		return job;
 	}
+
+	
+	// candidate (1, 2, 3, 4) => string "1 2 3 4"
+	private String candidateToString(List<Integer> p) {
+		String a = new String();
+		for (int i = 0; i < p.size()-1; i++)
+			a += p.get(i) + " ";
+		a += p.get(p.size()-1);
+		return a;
+	}		
+	// we will output to Output/fullBetaPrefix
+	private Path getOutputPathfullBetaPrefix(Configuration conf) {
+		String sep = System.getProperty("file.separator");
+		return new Path(sep + conf.get("output") + sep + "fullBetaPrefix");
+	}	
+	
+	private void betaPrefixToHDFS(Configuration conf, Job job) throws IOException {
+		
+		// create candidate directory in the hdfs
+		 FileSystem hdfs = FileSystem.get(conf);
+		 Path workingDir = hdfs.getWorkingDirectory();
+		 Path newFolderPath = getOutputPathfullBetaPrefix(conf);
+		 newFolderPath = Path.mergePaths(workingDir, getOutputPathfullBetaPrefix(conf));
+		if(!hdfs.exists(newFolderPath))				
+			hdfs.mkdirs(newFolderPath);     //Create new Directory
+    	
+    	File tempFile = null;
+    	// now we have all beta prefixes. Our job is to save to HDFS
+       	tempFile = File.createTempFile("betaPrefix", ".tmp");
+       	BufferedWriter outFile = new BufferedWriter(new FileWriter(tempFile.getAbsolutePath(), true));
+
+       	
+       	for (List<Integer> tempCandidate: betaPrefix) {
+       				outFile.write( candidateToString(tempCandidate) );
+	    			outFile.newLine();
+    	}
+    	outFile.close();
+
+    	System.out.println("Beta Prefix file : " + tempFile.getAbsolutePath() + " ,size : " + tempFile.length());
+   		Path localFilePath = new Path(tempFile.getAbsolutePath());
+   		System.out.println("Copy from : " + localFilePath.toString());  		
+   		Path newFilePath = new Path( newFolderPath.toString() + System.getProperty("file.separator") + tempFile.getName().toString()  );
+		System.out.println("Copy to : " + newFilePath.toString());
+		hdfs.copyFromLocalFile(localFilePath, newFilePath);
+		tempFile.delete();			
+		tempFile = null;     
+		job.addCacheFile(newFilePath.toUri());		   			
+		
+	}
+			
 	
 	Job setupJobStep3(Configuration conf) throws Exception {	
 		Job job = Job.getInstance(conf, "MapFIM Mining Prefix");
@@ -179,7 +229,8 @@ public class App extends Configured implements Tool {
 		job.setMapperClass(MapperBetaPrefix.class);
 		job.setMapOutputKeyClass(Text.class);
 		job.setMapOutputValueClass(Text.class);		
-				
+		betaPrefixToHDFS(conf, job);
+		
 		job.setNumReduceTasks(numberReducers);
 		job.setReducerClass(ReducerBetaPrefix.class);
 		job.setOutputKeyClass(Text.class);
@@ -213,7 +264,7 @@ public class App extends Configured implements Tool {
 	public int run(String[] args) throws Exception {
 		maxfullBetaPrefix = Integer.parseInt(args[4]);
 		
-		// Iteration 1
+		// Iteration 1 - word count - Determine frequent items
 		{
 			Configuration conf = setupConf(args, 1);
 			Job job = setupJobStep1(conf);
@@ -226,9 +277,9 @@ public class App extends Configured implements Tool {
 		// We delete every transactions that don't contains at least 2 frequent item in the output/1
 	
 		// Iteration 1b - to compress data 
+		// TODO: item ordering
 		{
 			// Now, Queue contains all frequent items
-
 			System.out.println("__________________STEP 1B _____________________");
 			System.out.println("__________________STEP 1B _____________________");
 			
@@ -237,89 +288,82 @@ public class App extends Configured implements Tool {
 			Job job = setupJobStep1B(conf);
 			job.waitForCompletion(true);
 		}		
-		step2Time = System.currentTimeMillis();
 		
-		// Queue contains prefix files => we will get it and create candidate files in the hdfs
-		// then we need other queue for  candidate file
-
-		// Now I need to put output to Distributed Cache
+		step2Time = System.currentTimeMillis();
+		// Number of iteration in this step = number of iteration of Apriori
 		int iteration = 2;
 		boolean stop = false;
 		
 		while (!stop) {
 			System.out.println("_____STEP " + iteration + "  _______");
-			System.out.println("_____STEP " + iteration + "  _______");
-			
+			System.out.println("_____STEP " + iteration + "  _______");			
 			Configuration conf = setupConf(args, iteration);
-			
 			Job job = setupJobStep2(conf);
-		
 			job.waitForCompletion(true);
-			
-			
 			System.out.println("\n\n\n\nStill having Candidate? : " + hasCandidate(conf, iteration));
-			// the number of iteration is not the iteration of steps, but the iteration of mapper/reducer
-			// each time, we will load every output of the last iteration, the load it to the QUEUE
-			// put some files in the QUEUE to the CACHE => make sure the sum is less than <10000
-			// queue is updated right after we have output
-			//updateQueue(conf);
 			stop = !hasCandidate(conf, iteration);
 			iteration++;
 
 		}
+		
+		
 		step3Time = System.currentTimeMillis();
 		
 		// Last step, Mining fullBetaPrefix
-
 		System.out.println("------------------ Mining beta Prefix--------------------");
+		Configuration conf = setupConf(args, iteration);
 		
-/*		for (int i = 0; i < nIteration; i++) 	{		
-			System.out.println("------------------ Mining beta Prefix ---------------STEP " + (i+1) + "/" + nIteration);
-			System.out.println("------------------ Mining beta Prefix ---------------STEP " + (i+1) + "/" + nIteration);
-			
-			// in Iteration i, we collect prefix from  i * 10000 to (i+1)*1000 - 1;
-			betaPrefix = new  ArrayList<List<Integer>>();
-			for (int j = i * maxfullBetaPrefix; j < (i+1) * maxfullBetaPrefix; j++) {
-				if (j < fullBetaPrefix.size()) {
-					// copy fullBetaPrefix(j) to betaPrefix
-					betaPrefix.add(fullBetaPrefix.get(j));
-				}
-			}
-			
-			Configuration conf = setupConf(args, iteration);
-			
-			/* step 1. Put the fullBetaPrefix to the distributed cache
-			* Note: We don't need to put all beta Prefix, because number of reducers
-			* size of beta prefix. So we may want to partition it for several times.
-			*/
-			/* step 2. Mappers: read beta Prefix, for each transaction
-			 * for all Prefix:
-			 * if transaction t contains prefix [a, b, c] then
-			 * we  t - [a, b, c] = t'
-			 * output  to reducer key = [a, b, c], value = t'
-			 * So, 1 transaction can output to many pair key, value
-			 */
+		getAllBetaFIMs(conf, args);
+	    String betaFile = "betaFIMs_" + args[0].substring(6) + "_support_" +    args[2] + ".txt";
+	    int nBetaDatabases = countLines(betaFile);
+		int nIteration = nBetaDatabases / maxfullBetaPrefix;
+		if (nBetaDatabases  % maxfullBetaPrefix != 0)
+			nIteration++;
 
+		System.out.println("--- Mining beta Prefix  #beta Prefix = " 
+				+nBetaDatabases + ", Total #iteration = " + nIteration);
+
+		FileReader fr = new FileReader(betaFile);
+		BufferedReader br  = new BufferedReader(fr);
+
+		String sCurrentLine;
+		int count = 0;
+		betaPrefix = new  ArrayList<List<Integer>>();
+		
+		while ((sCurrentLine = br.readLine()) != null) {
+			// read a beta FIM
+	 
+			count++;
+			String[] s = sCurrentLine.split("\\s+");
+			List<Integer> aBetaFIM = new ArrayList<Integer>();
+			for(int i=0; i<s.length; i++)
+				aBetaFIM.add(Integer.parseInt(s[i]));
 			
-			/* step 3. Reducers mine locally and report the result
-			 * with each key, value, it save the transaction locally to HDD 
-			 * to temporary file:  _tmp_Key
-			 * Then at the end, function cleanup is called. 
-			 * It mine locally and report back the result
-			 * 
-			 */
-			
-			//we have to partition beta Prefix into pack of 10k prefix for ex.
-		/*	
+			// add it to the list of beta Prefix
+			betaPrefix.add(aBetaFIM);
+
+			// if there are enough beta prefix, we have to mine them, and reset
+			if (count >= maxfullBetaPrefix ) {
+				// send it to MapReduce
+				System.out.println("------------------ Mining beta Prefix ---------------STEP " + iteration);
+				conf = setupConf(args, iteration);				
+				Job job = setupJobStep3(conf);
+				job.waitForCompletion(true);
+				iteration++;
+				count = 0;
+				betaPrefix = new  ArrayList<List<Integer>>();
+			}
+		}
+		
+		if (count > 0) {
+			System.out.println("------------------ Mining beta Prefix ---------------STEP " + iteration);
+			conf = setupConf(args, iteration);				
 			Job job = setupJobStep3(conf);
 			job.waitForCompletion(true);
 			iteration++;
 		}
 		
-		iteration--;*/
-		Configuration conf = setupConf(args, iteration);
-		printResult(conf, iteration, args);
-		getAllBetaFIMs(conf, args);
+		printResult(conf, iteration-1, args);
 		
 		return 1;
 	}
@@ -348,7 +392,7 @@ public class App extends Configured implements Tool {
 	    if (process.waitFor() == 0) 
 	        System.out.println("Success!\n");
 	    
-	    System.out.println("#Projected Databases = " + countLines(outputFile));
+	    //System.out.println("#Projected Databases = " + countLines(outputFile));
        	           
 	}		
 	

@@ -1,11 +1,5 @@
 echo "removing data"
-rm -fr /hadoop/chuong/tmp/*
-rm -fr /hadoop/chuong/yarn/* 
-for i in {0..14}
-do
-	echo "ssh to slave $i"
-	ssh chuong-slave-$i 'rm -fr /hadoop/chuong/*'
-done
+rm -fr /tmp/hadoop*
 hadoop namenode -format
 start-dfs.sh
 start-yarn.sh

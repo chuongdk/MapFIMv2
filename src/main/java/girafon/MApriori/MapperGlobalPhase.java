@@ -89,9 +89,7 @@ public class MapperGlobalPhase
 			FileSystem fs = FileSystem.get(conf);
 			FileStatus[] status = fs.listStatus(candidatePath);
 			candidateTrie = new Trie(-1);
-			
 			int totalNode = 0;
-			
 			for(int i = 0; i<status.length; i++){ 
 				InputStreamReader ir = new InputStreamReader(fs.open(status[i].getPath()));
 				BufferedReader data = new BufferedReader(ir);
@@ -106,7 +104,6 @@ public class MapperGlobalPhase
 		    		}    		
 		    		// add p to the list of prefix
 		    		candidateTrie.addToTrie(tempPrefix);
-
 		    		totalNode += tempPrefix.size();
 			    	if (totalNode >= maxTrieSize) {
 			    		 System.out.println("\n\n\n\nMining with #node = " + totalNode);
