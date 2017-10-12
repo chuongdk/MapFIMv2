@@ -22,7 +22,7 @@ public class MapperCompressData
     extends Mapper<Object, Text, Text, Text>{
     	
     // Hasp Map of Items
-    HashMap<Integer, Integer> hashItems = new HashMap<Integer, Integer>();
+    HashMap<String, Integer> hashItems = new HashMap<String, Integer>();
     
     private int nItems = 0;
 	private Configuration conf;
@@ -53,7 +53,7 @@ public class MapperCompressData
 					String line=data.readLine();
 					if (line.matches("\\s*")) continue; // be friendly with empty lines
 					String[] numberStrings = line.split("\t");
-	    			int frequentItem = Integer.parseInt(numberStrings[0]);
+					String frequentItem =  numberStrings[0];
 	    			if (!hashItems.containsKey(frequentItem)) {
 	        				hashItems.put(frequentItem, nItems);
 	        				nItems++;
@@ -87,12 +87,12 @@ public class MapperCompressData
 		String line = value.toString();
 		// convert transaction to List<Integer>
 		String[] s = line.split("\\s+");
-		List<Integer> t = new ArrayList<Integer>();
+		List<String> t = new ArrayList<String>();
 		// count how many frequent items appear in this transaction
 		int count = 0;
 		for(int i=0; i<s.length; i++) {
-		   t.add(Integer.parseInt(s[i]));
-		   if (hashItems.containsKey(Integer.parseInt(s[i])))
+		   t.add(s[i]);
+		   if (hashItems.containsKey(s[i]))
 				count++;
 		}
 		if (count >= 2) {
@@ -101,13 +101,13 @@ public class MapperCompressData
 			 // we sort transaction t:
 			 Collections.sort(t);
 			 // convert transaction to List<Integer>
-			 for (Integer x: t)
+			 for (String x: t)
 				 if (hashItems.containsKey(x)) {
-					newT = newT + x.toString() + " ";					
+					newT = newT + x.toString() + "\t";					
 				 }
 			 // now newT is the transaction with only frequent items, we will output it
 			 word.set(newT);
-			 context.write(word, new Text("1 1"));  // 1 support, 1 for data (to avoid error)
+			 context.write(word, new Text("1\t1"));  // 1 support, 1 for data (to avoid error)
 		}
 	 }
 }

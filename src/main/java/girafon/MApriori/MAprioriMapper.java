@@ -21,12 +21,13 @@ public class MAprioriMapper
 	 public void map(Object key, Text value, Context context
 	                 ) throws IOException, InterruptedException {
 		 String[] splits = value.toString().split("\\s+");
+
 	
 		 // splits into a list of integer
-		 List<Integer> t = new ArrayList<Integer>();
+		 List<String> t = new ArrayList<String>();
 
 		 for(int i=0; i<splits.length; i++) {
-		    t.add(Integer.parseInt(splits[i]));
+		    t.add(splits[i]);
 		 }
 		// we sort transaction t:
 		 Collections.sort(t);

@@ -11,30 +11,38 @@ import org.apache.hadoop.fs.Path;
 public class Trie {
 	  
 	
-	  private int item;
+	  private String item;
 	  public int support;
 	  public long data; //size of conditional database 
 
 	  // it contains all prefix that appear in the transaction
-	  public static List<List<Integer>> prefixInTransaction;
+	  public static List<List<String>> prefixInTransaction;
 	  
 
 	  
 	  // this node is a leaf if children.isEmpty() = true
-	  public  HashMap<Integer, Trie>  children = null;
+	  public  HashMap<String, Trie>  children = null;
 	  
 	  
-	  public  Trie(int item){
+	  public  Trie(String item){
 		  this.item = item;
 		  this.support = 0;
 		  this.data = 0;
 	  }
+	  
+	  
+	  // item = -1
+	  public  Trie(int item){
+		  this.item = "NULL";
+		  this.support = 0;
+		  this.data = 0;
+	  }	  
 
 	  /* Finding all prefix appearing in the trasaction t
 	   * Input: transaction t,  prefix p = null
 	   * Output: Update prefixInTransaction 
 	   */
-	  public void findingPrefix(List<Integer> t,  List<Integer> p) {
+	  public void findingPrefix(List<String> t,  List<String> p) {
 		  
 		  // we update prefixInTransaction only if it is a children node
 		 if (children == null) {
@@ -47,7 +55,7 @@ public class Trie {
 		 for (int i = 0; i < t.size()-1; i++) {
 			  Trie x = children.get(t.get(i));			  
 			  if (x != null) {
-				  List<Integer> pNext = new ArrayList<Integer>(p);
+				  List<String> pNext = new ArrayList<String>(p);
 				  pNext.add(t.get(i));
 				  x.findingPrefix(t, pNext);
 			  }
@@ -58,16 +66,20 @@ public class Trie {
 	  
 	  
 	  // update support of Nodes in Trie from a transaction
-	  public void updateSupport(List<Integer> t) {
+	  public void updateSupport(List<String> t) {
 		  // we update support only if it is a leaf
 		 if (children == null) {
 			 // the support value is the last value of t
-			 support += t.get(t.size()-1);
+			 support += Integer.parseInt(  t.get(t.size()-1)  );
 			 
 			 // Find the position of this.item in the transaction t
 			 
 			 
-			 data += (t.size() - t.indexOf(item) - 2) * t.get( t.size() - 1);  // - number of duplicate transaction
+			 data += (t.size() - t.indexOf(item) - 2) * 
+					 Integer.parseInt(  t.get( t.size() - 1)  );  // - number of duplicate transaction
+
+			 
+			 
 			 
 //			 System.out.println(item + " " + (t.size() - t.indexOf(item) - 2) * t.get( t.size() - 1) + " support= " + support + ", data= " + data);
 //			 System.out.println(t+"\n");
@@ -85,16 +97,16 @@ public class Trie {
 	  
 
 	  // add an itemset to the Trie, ex [89, 9] => new node 89	  
-	  public void addToTrie(List<Integer> itemsets) {
+	  public void addToTrie(List<String> itemsets) {
 		  
-		  List<Integer> nextItemsets = new ArrayList<Integer>(itemsets);
+		  List<String> nextItemsets = new ArrayList<String>(itemsets);
 		  
 		  if (nextItemsets.size() == 0) return;
 		  
 		  if (children == null)
 			  children =  newHashMap();
 		  
-		  int item = nextItemsets.get(0);
+		  String item = nextItemsets.get(0);
 		  nextItemsets.remove(0);
 		  
 		  if (children.containsKey(item)) {
@@ -116,7 +128,7 @@ public class Trie {
 	      a = "Node: " + item + ", " + support +  " Child = (";
 	      
 	      if (children != null)
-		      for (Integer x : children.keySet()) {
+		      for (String x : children.keySet()) {
 		    	Trie y = children.get(x);
 		    	a = a + y.toString();
 		    	a = a + " , ";

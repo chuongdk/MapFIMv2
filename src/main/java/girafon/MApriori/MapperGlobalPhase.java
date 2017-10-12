@@ -68,16 +68,16 @@ public class MapperGlobalPhase
 			// We have candidateTrie + data. Now we mine
 			for(String line:data){
 				String[] s = line.split("\\s+");
-				List<Integer> t = new ArrayList<Integer>();
+				List<String> t = new ArrayList<String>();
 				for(int i=0; i<s.length; i++)
-				   t.add(Integer.parseInt(s[i]));
+				   t.add( s[i] );
 				// update support in Trie with transaction t
 				candidateTrie.updateSupport(t);
 				
 			}
  
 			// Mining is done. Now export to Reducers
-			 List<Integer> itemset = new ArrayList<Integer>();
+			 List<String> itemset = new ArrayList<String>();
 			 outToReducer(context, candidateTrie, itemset);		 
 	 }
 	 
@@ -97,10 +97,10 @@ public class MapperGlobalPhase
 		    		String line=data.readLine();
 		    		if (line.matches("\\s*")) continue; // be friendly with empty lines
 		    		// creat new prefix tempPrefix
-		    		List<Integer> tempPrefix = new ArrayList<Integer>();
+		    		List<String> tempPrefix = new ArrayList<String>();
 		    		String[] numberStrings = line.split("\\s+");
 		    		for (int x = 0; x < numberStrings.length; x++){   
-		    			tempPrefix.add(Integer.parseInt(numberStrings[x]));
+		    			tempPrefix.add( numberStrings[x] );
 		    		}    		
 		    		// add p to the list of prefix
 		    		candidateTrie.addToTrie(tempPrefix);
@@ -126,12 +126,12 @@ public class MapperGlobalPhase
 	 
 	 }
 	 
-	 public void outToReducer(Context context, Trie trie, List<Integer> currentPrefix) throws IOException, InterruptedException {
-	      for (Integer x : trie.children.keySet()) {
+	 public void outToReducer(Context context, Trie trie, List<String> currentPrefix) throws IOException, InterruptedException {
+	      for (String x : trie.children.keySet()) {
 	    	Trie nextTrie = trie.children.get(x);
-	    	List<Integer> nextPrefix =  new ArrayList<>();
+	    	List<String> nextPrefix =  new ArrayList<String>();
 	    	
-	    	for (Integer z : currentPrefix)
+	    	for (String z : currentPrefix)
 	    		nextPrefix.add(z);
 	    	
 	    	nextPrefix.add(x);
@@ -150,7 +150,7 @@ public class MapperGlobalPhase
 	      }
 	 }	 
 
-	 public static String itemsetToString(List<Integer> x) {
+	 public static String itemsetToString(List<String> x) {
 		 String a = new String();
 		 a = x.get(0) + "";
 		 for (int i = 1; i < x.size(); i++)

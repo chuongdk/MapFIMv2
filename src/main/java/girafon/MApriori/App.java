@@ -39,7 +39,11 @@ import org.apache.hadoop.util.ToolRunner;
 // - Reducers generate file containning beta FIM (FIM with data <= maxDataAllow)
 // => at output/betaFIMs. DONE
 // - Rewrite step4. DONE
-// - Item ordering (0, 1, 2): 1 = increasing order, 2 = decreasing order
+// - Item ordering (0, 1, 2): 1 = increasing order, 2 = decreasing order. STOP
+// Item from INTEGER to STRING
+
+
+//Bug: if conditional data = 0 => not appear in final result as it is not in beta file
 
 
 
@@ -58,7 +62,7 @@ public class App extends Configured implements Tool {
 	private static long step3Time;
 	private static long step4Time;
 	
-    private List<List<Integer>> betaPrefix = new  ArrayList<List<Integer>>();
+    private List<List<String>> betaPrefix = new  ArrayList<List<String>>();
     
 	
 	// we will output to Output/1,2,3,4
@@ -175,10 +179,10 @@ public class App extends Configured implements Tool {
 
 	
 	// candidate (1, 2, 3, 4) => string "1 2 3 4"
-	private String candidateToString(List<Integer> p) {
+	private String candidateToString(List<String> p) {
 		String a = new String();
 		for (int i = 0; i < p.size()-1; i++)
-			a += p.get(i) + " ";
+			a += p.get(i) + "\t";
 		a += p.get(p.size()-1);
 		return a;
 	}		
@@ -204,7 +208,7 @@ public class App extends Configured implements Tool {
        	BufferedWriter outFile = new BufferedWriter(new FileWriter(tempFile.getAbsolutePath(), true));
 
        	
-       	for (List<Integer> tempCandidate: betaPrefix) {
+       	for (List<String> tempCandidate: betaPrefix) {
        				outFile.write( candidateToString(tempCandidate) );
 	    			outFile.newLine();
     	}
@@ -328,16 +332,16 @@ public class App extends Configured implements Tool {
 
 		String sCurrentLine;
 		int count = 0;
-		betaPrefix = new  ArrayList<List<Integer>>();
+		betaPrefix = new  ArrayList<List<String>>();
 		
 		while ((sCurrentLine = br.readLine()) != null) {
 			// read a beta FIM
 	 
 			count++;
 			String[] s = sCurrentLine.split("\\s+");
-			List<Integer> aBetaFIM = new ArrayList<Integer>();
+			List<String> aBetaFIM = new ArrayList<String>();
 			for(int i=0; i<s.length; i++)
-				aBetaFIM.add(Integer.parseInt(s[i]));
+				aBetaFIM.add( s[i]);
 			
 			// add it to the list of beta Prefix
 			betaPrefix.add(aBetaFIM);
@@ -351,7 +355,7 @@ public class App extends Configured implements Tool {
 				job.waitForCompletion(true);
 				iteration++;
 				count = 0;
-				betaPrefix = new  ArrayList<List<Integer>>();
+				betaPrefix = new  ArrayList<List<String>>();
 			}
 		}
 		
@@ -445,7 +449,7 @@ public class App extends Configured implements Tool {
 	public static void main(String[] args) throws Exception {
 		numberReducers = Integer.parseInt(args[5]);
 		maxDataAllow = Long.parseLong(args[3]) * 1024 /gamma * 1024;
-		
+		//maxDataAllow -= 1;
 		
 		System.out.println("----------------------------RUNNING-------------------------");
 		System.out.println("Input            : " + args[0]);

@@ -29,10 +29,10 @@ public class MAprioriMapperStepK
 	
 	
 	// list of all prefix in the distributed cache 
-    private List<List<Integer>> prefix = new  ArrayList<List<Integer>>();
+    private List<List<String>> prefix = new  ArrayList<List<String>>();
 
     // Hasp Map of Items
-    HashMap<Integer, Integer> hashItems = new HashMap<Integer, Integer>();
+    HashMap<String, Integer> hashItems = new HashMap<String, Integer>();
 
     private Trie candidateTrie;
     
@@ -42,8 +42,8 @@ public class MAprioriMapperStepK
     // Build Hash Map of Items
     private void buildHashItems() {
     	nItems = 0;
-    	for (List<Integer> x : prefix) {
-    		for (int i : x) {
+    	for (List<String> x : prefix) {
+    		for (String i : x) {
     			if (!hashItems.containsKey(i)) {
     				hashItems.put(i, nItems);
     				nItems++;
@@ -78,10 +78,10 @@ public class MAprioriMapperStepK
 	    	//	System.out.println(line);
 	    		if (line.matches("\\s*")) continue; // be friendly with empty lines
 	    		// creat new prefix tempPrefix
-	    		List<Integer> tempPrefix = new ArrayList<Integer>();
+	    		List<String> tempPrefix = new ArrayList<String>();
 	    		String[] numberStrings = line.split("\\s+");
 	    		for (int i = 0; i < numberStrings.length; i++){   
-	    			tempPrefix.add(Integer.parseInt(numberStrings[i]));
+	    			tempPrefix.add( numberStrings[i] );
 	    		}    		
 	    		// add p to the list of prefix
 	    		prefix.add(tempPrefix);
@@ -91,15 +91,15 @@ public class MAprioriMapperStepK
    }
     
     // compare if two prefix are matched
-    public static boolean matchPrefix(List<Integer> x, List<Integer> y) {
+    public static boolean matchPrefix(List<String> x, List<String> y) {
     	if (x.size() != y.size())
     		return false;
     	
     	for (int i = 0; i < x.size() - 1; i++) {
     		// we can't compare x.get(i) and y.get(i) direct, it will miss some pairs
-    		int a = x.get(i);
-    		int b = y.get(i);
-    		if (a != b)    			
+    		String a = x.get(i);
+    		String b = y.get(i);
+    		if (a.compareTo(b) != 0)    			
     			return false;
     	}
     	return true;
@@ -124,7 +124,7 @@ public class MAprioriMapperStepK
     	}
     	*/
      	for (int i = 0; i < prefix.size(); i++) {
-    		List<Integer> x = prefix.get(i);
+    		List<String> x = prefix.get(i);
     		candidateTrie.addToTrie(x);
      	}
     	
@@ -151,7 +151,7 @@ public class MAprioriMapperStepK
 	}
 
 	 
-	 public static String itemsetToString(List<Integer> x) {
+	 public static String itemsetToString(List<String> x) {
 		 String a = new String();
 		 a = x.get(0) + "";
 		 for (int i = 1; i < x.size(); i++)
@@ -163,16 +163,16 @@ public class MAprioriMapperStepK
 	 // read the Trie and output all itemsets AT LEAF
 	 @Override
 	 public void cleanup(Context context) throws IOException, InterruptedException {
-		 List<Integer> itemset = new ArrayList<Integer>();
+		 List<String> itemset = new ArrayList<String>();
 		 outToReducer(context, candidateTrie, itemset);
 	 }
 	 
-	 public void outToReducer(Context context, Trie trie, List<Integer> currentPrefix) throws IOException, InterruptedException {
-	      for (Integer x : trie.children.keySet()) {
+	 public void outToReducer(Context context, Trie trie, List<String> currentPrefix) throws IOException, InterruptedException {
+	      for (String x : trie.children.keySet()) {
 	    	Trie nextTrie = trie.children.get(x);
-	    	List<Integer> nextPrefix =  new ArrayList<>();
+	    	List<String> nextPrefix =  new ArrayList<String>();
 	    	
-	    	for (Integer z : currentPrefix)
+	    	for (String z : currentPrefix)
 	    		nextPrefix.add(z);
 	    	
 	    	nextPrefix.add(x);
@@ -205,9 +205,9 @@ public class MAprioriMapperStepK
 		
 		// convert transaction to List<Integer>
 		String[] s = line.split("\\s+");
-		List<Integer> t = new ArrayList<Integer>();
+		List<String> t = new ArrayList<String>();
 		for(int i=0; i<s.length; i++)
-		   t.add(Integer.parseInt(s[i]));
+		   t.add(  s[i]);
 		 
 		// update support in Trie with transaction t
 		candidateTrie.updateSupport(t);

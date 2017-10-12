@@ -36,10 +36,10 @@ public class MapperBetaPrefix
 	
 	
 	// list of all prefix in the distributed cache 
-    private List<List<Integer>> prefix = new  ArrayList<List<Integer>>();
+    private List<List<String>> prefix = new  ArrayList<List<String>>();
 
     // Hasp Map of Items
-    HashMap<Integer, Integer> hashItems = new HashMap<Integer, Integer>();
+    HashMap<String, Integer> hashItems = new HashMap<String, Integer>();
 
     private Trie betaPrefixTrie;
     
@@ -49,8 +49,8 @@ public class MapperBetaPrefix
     // Build Hash Map of Items
     private void buildHashItems() {
     	nItems = 0;
-    	for (List<Integer> x : prefix) {
-    		for (int i : x) {
+    	for (List<String> x : prefix) {
+    		for (String i : x) {
     			if (!hashItems.containsKey(i)) {
     				hashItems.put(i, nItems);
     				nItems++;
@@ -85,10 +85,10 @@ public class MapperBetaPrefix
 	    	//	System.out.println(line);
 	    		if (line.matches("\\s*")) continue; // be friendly with empty lines
 	    		// creat new prefix tempPrefix
-	    		List<Integer> tempPrefix = new ArrayList<Integer>();
+	    		List<String> tempPrefix = new ArrayList<String>();
 	    		String[] numberStrings = line.split("\\s+");
 	    		for (int i = 0; i < numberStrings.length; i++){   
-	    			tempPrefix.add(Integer.parseInt(numberStrings[i]));
+	    			tempPrefix.add( numberStrings[i]);
 	    		}    		
 	    		// add p to the list of prefix
 	    		prefix.add(tempPrefix);
@@ -98,15 +98,15 @@ public class MapperBetaPrefix
    }
     
     // compare if two prefix are matched
-    public static boolean matchPrefix(List<Integer> x, List<Integer> y) {
+    public static boolean matchPrefix(List<String> x, List<String> y) {
     	if (x.size() != y.size())
     		return false;
     	
     	for (int i = 0; i < x.size() - 1; i++) {
     		// we can't compare x.get(i) and y.get(i) direct, it will miss some pairs
-    		int a = x.get(i);
-    		int b = y.get(i);
-    		if (a != b)    			
+    		String a = x.get(i);
+    		String b = y.get(i);
+    		if (a.compareTo(b) != 0)    			
     			return false;
     	}
     	return true;
@@ -116,7 +116,7 @@ public class MapperBetaPrefix
     private void generateCandidateAndTrie(){
     	betaPrefixTrie = new Trie(-1);
      	for (int i = 0; i < prefix.size(); i++) {
-    		List<Integer> x = prefix.get(i);
+    		List<String> x = prefix.get(i);
     		
     		betaPrefixTrie.addToTrie(x);
      	}
@@ -195,24 +195,24 @@ public class MapperBetaPrefix
 		
 		// convert transaction to List<Integer>
 		String[] s = line.split("\\s+");
-		List<Integer> t = new ArrayList<Integer>();
+		List<String> t = new ArrayList<String>();
 		for(int i=0; i<s.length; i++)
-		   t.add(Integer.parseInt(s[i]));
+		   t.add( s[i]);
 		 
 		// update support in Trie with transaction t
 		
-		List<Integer> p = new ArrayList<Integer>();
-		betaPrefixTrie.prefixInTransaction = new  ArrayList<List<Integer>>();
+		List<String> p = new ArrayList<String>();
+		betaPrefixTrie.prefixInTransaction = new  ArrayList<List<String>>();
 		betaPrefixTrie.findingPrefix(t, p);
 		
 		
 		// transaction t appear count times. Now we remove that number 
-		int count = t.get(t.size()-1);
+		int count = Integer.parseInt(  t.get(t.size()-1) );
 		t.remove(t.size()-1);
 		
 		
 		
-		for (List<Integer> x : betaPrefixTrie.prefixInTransaction) {
+		for (List<String> x : betaPrefixTrie.prefixInTransaction) {
 			
 			// x is beta prefix in the transaction
 			// send to Reducers
@@ -221,16 +221,16 @@ public class MapperBetaPrefix
 			Text keyR = new Text(MAprioriMapperStepK.itemsetToString(x));
 			
 			
-			List<Integer> tMinusX = new ArrayList<Integer>(t);
+			List<String> tMinusX = new ArrayList<String>(t);
 			
 			// we will remove items that is smaller than  x.getLast
-			int lastItem = x.get(x.size()-1);
+			String lastItem = x.get(x.size()-1);
 			
 			// we remove any items that <= lastItem
 
-			for (Iterator<Integer> iterator = tMinusX.iterator(); iterator.hasNext(); ) {
-			    int item = iterator.next();
-			    if (item <= lastItem) {
+			for (Iterator<String> iterator = tMinusX.iterator(); iterator.hasNext(); ) {
+				String item = iterator.next();
+			    if (item.compareTo(lastItem) < 0) {   // <0 or >0 verify
 			        iterator.remove();
 			    }			    
 			}

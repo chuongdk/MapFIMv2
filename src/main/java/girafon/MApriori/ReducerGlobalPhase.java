@@ -25,10 +25,10 @@ public class ReducerGlobalPhase
 	private int support;
 	private long maxDataAllow;
 	// list of FIMs
-    private List<List<Integer>> fims; 
-    private List<List<Integer>> betaFims;
+    private List<List<String>> fims; 
+    private List<List<String>> betaFims;
     
-    List<Integer> prevFim = null;
+    List<String> prevFim = null;
     
     private Path candidatePath;
     private Path betaPath;
@@ -39,8 +39,8 @@ public class ReducerGlobalPhase
 		conf = context.getConfiguration();
 		support = conf.getInt("support", 1);
 		maxDataAllow = conf.getLong("maxDataAllow", 0);
-		fims = new  ArrayList<List<Integer>>();
-		betaFims = new  ArrayList<List<Integer>>();
+		fims = new  ArrayList<List<String>>();
+		betaFims = new  ArrayList<List<String>>();
 		
 		 
 		candidatePath =  new Path(conf.get("output") + 
@@ -58,13 +58,14 @@ public class ReducerGlobalPhase
 	// key are solved in order, so we are sure that key with k-1 prefix are 
 	// solved together
 	
-	private boolean sharePrefix(List<Integer> a, List<Integer> b) {
+	private boolean sharePrefix(List<String> a, List<String> b) {
 		if (a == null)
 			return true;
 		
 		// check if they share k-1 prefix
 		for (int i = 0; i < a.size() - 2; i++){
-			if (a.get(i) != b.get(i))
+			//if (a.get(i) != b.get(i))
+			if (a.get(i).compareTo(b.get(i)) != 0)
 				return false;
 		}
 		
@@ -85,7 +86,7 @@ public class ReducerGlobalPhase
 			return;
 					
 		// create new temp file
-		List<Integer> firstFim = fims.get(0);
+		List<String> firstFim = fims.get(0);
 		StringBuilder fileName = new StringBuilder("_Candidate_");
 		for (int i = 0; i < firstFim.size()-2; i++)
 			fileName.append( firstFim.get(i).toString() + "_" );
@@ -96,17 +97,19 @@ public class ReducerGlobalPhase
 
 		long count = 0;
 		for (int i = 0; i < fims.size(); i++) {
-			List<Integer> a = fims.get(i);
+			List<String> a = fims.get(i);
 
 			// generate only candidate with flag = 1
-			if (a.get(a.size()-1) == 1)
+			if (a.get(a.size()-1).compareTo(new String("FLAG")) == 0)
 				for (int j = 0; j < fims.size(); j++) {
 	
-					List<Integer> b = fims.get(j);
-					if (a.get(a.size()-2) < b.get(b.size()-2)) {
-						List<Integer> candidate;
+					List<String> b = fims.get(j);
+					
+					// if a < b
+					if (a.get(a.size()-2).compareTo( b.get(b.size()-2)) < 0) {
+						List<String> candidate;
 						
-						candidate = new ArrayList<Integer>(a);
+						candidate = new ArrayList<String>(a);
 						
 						// remove the flag (last position)
 						candidate.remove(candidate.size()-1);
@@ -114,8 +117,8 @@ public class ReducerGlobalPhase
 						candidate.add(b.get(b.size()-2));
 					
 						StringBuilder stringCandiate = new StringBuilder("");
-						for (Integer item : candidate){
-							stringCandiate.append(item.toString() + " ");
+						for (String item : candidate){
+							stringCandiate.append(item.toString() + "\t");
 						}
 						// save candidate to file
 						outFile.write( stringCandiate.toString() );
@@ -160,37 +163,42 @@ public class ReducerGlobalPhase
 		   context.write(key, new Text(exportValue));
 		   // save FIMs to the memory
 		   String[] splits = key.toString().split("\\s+");
-		   List<Integer> aFIM = new ArrayList<Integer>();
+		   List<String> aFIM = new ArrayList<String>();
 		   for (String item: splits) {
-			   aFIM.add(Integer.parseInt(item));
+			   aFIM.add(item);
 		   }
 		   
 		   // last item of aFIM is a flag. 
 		   // Flag = 1 if it pass maxDataAllow
-		   if (sumData > maxDataAllow) {
-			   aFIM.add(1);
+		   if (sumData >= maxDataAllow) {
+			   aFIM.add(new String("FLAG"));
 		   }
-		   else   {
-			   // add aFIM to betaData
-			   betaFims.add(aFIM);
+		   else   { 
+			   aFIM.add("OK");
 			   
-			   aFIM.add(0);
+			   // add it to betaFIMs if Data >= support. Because if Data < support, we don't have to mine conditional data
+			   if (sumData >= support) {
+			   // add aFIM to betaData
+				   	betaFims.add(aFIM);
+			   }
+			   
+
 		   }
 		   
 		   
 		   // add aFIM to fims if prevFim is null or prevFIM share k-1 prefix
 		   if (sharePrefix(prevFim, aFIM)){
 			   fims.add(aFIM);
-			   prevFim = new ArrayList<Integer>(aFIM);
+			   prevFim = new ArrayList<String>(aFIM);
 		   }
 		   else
 		   {
 			   // generate candidates
 			   generateCandidate();
 			   // reset fims
-			   fims = new  ArrayList<List<Integer>>();
+			   fims = new  ArrayList<List<String>>();
 			   fims.add(aFIM);
-			   prevFim = new ArrayList<Integer>(aFIM);
+			   prevFim = new ArrayList<String>(aFIM);
 		   }
 		   
 
@@ -216,9 +224,9 @@ public class ReducerGlobalPhase
 			BufferedWriter outFile = new BufferedWriter(new FileWriter(tempFile.getAbsolutePath(), true));		
 
 			// write beta FIMs to file
-			for (List<Integer> x : betaFims) {
+			for (List<String> x : betaFims) {
 				for (int i = 0; i < x.size()-1; i++)
-					outFile.write( x.get(i) + " ");				
+					outFile.write( x.get(i) + "\t");				
     			outFile.newLine();
 			}
 			
